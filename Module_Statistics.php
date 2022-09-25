@@ -37,7 +37,7 @@ final class Module_Statistics extends GDO_Module
 	{
 		if ($this->cfgBottomBar())
 		{
-		    $bar = GDT_Page::$INSTANCE->bottomNav;
+		    $bar = GDT_Page::$INSTANCE->bottomBar();
 			$total = GDO_Statistic::totalHits();
 			$today = GDO_Statistic::todayHits();
 			$bar->addField(
