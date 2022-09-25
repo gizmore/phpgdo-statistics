@@ -20,11 +20,11 @@ use GDO\Core\Application;
  */
 final class GDO_Statistic extends GDO
 {
-	public function gdoEngine() { return GDO::MYISAM; }
+	public function gdoEngine() : string { return GDO::MYISAM; }
 	
-	public function gdoCached() { return false; }
+	public function gdoCached() : bool { return false; }
 	
-	public function gdoColumns()
+	public function gdoColumns() : array
 	{
 	    return [
 			GDT_Date::make('ph_day')->primary()->notNull(),
