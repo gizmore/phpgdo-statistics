@@ -10,6 +10,8 @@ use GDO\Date\GDT_Date;
 use GDO\DB\Cache;
 use GDO\Core\GDT_Enum;
 use GDO\Core\Application;
+use GDO\Form\GDT_Form;
+use GDO\Util\FileUtil;
 
 /**
  * Statistics about called module methods each day.
@@ -28,28 +30,31 @@ final class GDO_Statistic extends GDO
 	{
 	    return [
 			GDT_Date::make('ph_day')->primary()->notNull(),
-	        GDT_Enum::make('ph_type')->primary()->enumValues('GET', 'POST')->notNull(),
+	        GDT_Enum::make('ph_type')->primary()->enumValues(GDT_Form::GET, GDT_Form::POST)->notNull(),
 		    GDT_String::make('ph_module')->ascii()->caseS()->max(64)->primary(),
 		    GDT_String::make('ph_method')->ascii()->caseS()->max(64)->primary(),
 			GDT_UInt::make('ph_hits')->notNull()->initial('1'),
 	    ];
 	}
-	
-	public static function pagehit(Method $method)
+
+	##############
+	### DB API ###
+	##############
+	public static function pagehit(Method $method): self
 	{
 		$day = Time::getDateWithoutTime();
 		$type = Application::$INSTANCE->verb;
 		$mo = $method->getModuleName();
 		$me = $method->getMethodName();
-		try
-		{
+//		try
+//		{
 		    if ($row = self::table()->getById($day, $type, $mo, $me))
 		    {
 		        return $row->increase('ph_hits');
 		    }
 		    else
 		    {
-		        $row = self::table()->blank([
+		        return self::table()->blank([
 		            'ph_day' => $day,
 		            'ph_type' => $type,
 		            'ph_module' => $mo,
@@ -57,33 +62,33 @@ final class GDO_Statistic extends GDO
 		            'ph_hits' => '1',
 		        ])->insert();
 		    }
-		}
-		catch (\Throwable $ex)
-		{
-		    return self::table()->blank([
-		        'ph_day' => $day,
-		        'ph_type' => $type,
-		        'ph_module' => $mo,
-		        'ph_method' => $me,
-		        'ph_hits' => '1',
-		    ]);
-		}
+//		}
+//		catch (\Throwable $ex)
+//		{
+//		    return self::table()->blank([
+//		        'ph_day' => $day,
+//		        'ph_type' => $type,
+//		        'ph_module' => $mo,
+//		        'ph_method' => $me,
+//		        'ph_hits' => '1',
+//		    ]);
+//		}
 	}
-	
+
 	/**
 	 * Return total hits for the whole time in universe.
 	 * Caches the result.
-	 * @return string
 	 */
-	public static function totalHits()
+	public static function totalHits(): int
 	{
 	    static $hits;
-	    if ($hits === null)
+	    if (!isset($hits))
 	    {
-	        if (false === ($hits = Cache::get('statistics_hits')))
+	    	if (null === ($hits = Cache::get('statistics_hits')))
 	        {
     	        $hits = self::table()->select('SUM(ph_hits)')->
     	           exec()->fetchValue();
+    	        $hits = $hits?:0;
     	        Cache::set('statistics_hits', $hits, 60);
 	        }
 	    }
@@ -95,15 +100,67 @@ final class GDO_Statistic extends GDO
 	    static $hits;
 	    if ($hits === null)
 	    {
-	        if (false === ($hits = Cache::get('statistics_hits_today')))
+	        if (null === ($hits = Cache::get('statistics_hits_today')))
 	        {
 	            $day = Time::getDateWithoutTime();
 	            $hits = self::table()->select('SUM(ph_hits)')->
 	               where("ph_day='{$day}'")->exec()->fetchValue();
+				$hits = $hits?:0;
 	            Cache::set('statistics_hits_today', $hits);
 	        }
 	    }
 	    return $hits;
 	}
-	
+
+	#######################
+	### Simple File API ###
+	#######################
+	public static function pagehitSimple(): void
+	{
+		self::pagehitSimpleB('_total_hits.txt');
+		self::pagehitSimpleB(Time::getDate(0, 'Ymd') . '_hits.txt');
+	}
+
+	public static function simpleHits(): array
+	{
+		return [
+			self::simpleHitsTotal(),
+			self::simpleHitsToday(),
+		];
+	}
+
+	public static function simpleHitsTotal(): int
+	{
+		return self::simpleHit('_total_hits.txt');
+	}
+
+	public static function simpleHitsToday(): int
+	{
+		return self::simpleHit(Time::getDate(0, 'Ymd') . '_hits.txt');
+	}
+
+	private static function simpleHit(string $filename): int
+	{
+		$mod = Module_Statistics::instance();
+		$path = $mod->storagePath($filename);
+		return (int) @file_get_contents($path);
+	}
+
+	private static function pagehitSimpleB(string $filename): void
+	{
+		$mod = Module_Statistics::instance();
+		$path = $mod->storagePath($filename);
+		FileUtil::createFile($path);
+		if ($fh = fopen($path, 'r+'))
+		{
+			$count = (int)fgets($fh);
+			$count++;
+			fseek($fh, 0);
+			flock($fh, LOCK_EX);
+			fwrite($fh, (string)$count);
+			fwrite($fh, "\n");
+			fclose($fh);
+		}
+	}
+
 }

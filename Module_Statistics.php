@@ -20,10 +20,12 @@ final class Module_Statistics extends GDO_Module
 	{
 		return [
 			GDT_Checkbox::make('hook_sidebar')->initial('1'),
+			GDT_Checkbox::make('extended_pagecount')->initial('0'),
 		];
 	}
 	public function cfgBottomBar() : bool { return $this->getConfigValue('hook_sidebar'); }
-	
+	public function cfgExtended() : bool { return $this->getConfigValue('extended_pagecount'); }
+
 	public function getClasses() : array
 	{
 	    return [
@@ -38,19 +40,33 @@ final class Module_Statistics extends GDO_Module
 		if ($this->cfgBottomBar())
 		{
 		    $bar = GDT_Page::$INSTANCE->bottomBar();
-			$total = GDO_Statistic::totalHits();
-			$today = GDO_Statistic::todayHits();
+			if ($this->cfgExtended())
+			{
+				$total = GDO_Statistic::totalHits();
+				$today = GDO_Statistic::todayHits();
+			}
+			else
+			{
+				list($total, $today) = GDO_Statistic::simpleHits();
+			}
 			$bar->addField(
 			    GDT_Tooltip::make()->icon('trophy')->
 			        tooltip('statistics_hitcounter', [$total, $today]));
 		}
 	}
 	
-	public function hookAfterRequest(Method $method)
+	public function hookAfterExecute(Method $method)
 	{
 		if (!$method->isAjax())
 		{
-			GDO_Statistic::pagehit($method);
+			if ($this->cfgExtended())
+			{
+				GDO_Statistic::pagehit($method);
+			}
+			else
+			{
+				GDO_Statistic::pagehitSimple();
+			}
 		}
 	}
 	
