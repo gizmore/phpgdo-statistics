@@ -40,7 +40,7 @@ final class GDO_Statistic extends GDO
 	##############
 	### DB API ###
 	##############
-	public static function pagehit(Method $method): self
+	public static function pagehit(Method $method): static
 	{
 		$day = Time::getDateWithoutTime();
 		$type = Application::$INSTANCE->verb;
