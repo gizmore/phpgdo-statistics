@@ -70,7 +70,7 @@ final class GDO_Statistic extends GDO
 			if (null === ($hits = Cache::get('statistics_hits')))
 			{
 				$hits = self::table()->select('SUM(ph_hits)')->
-				exec()->fetchValue();
+				exec()->fetchVar();
 				$hits = $hits ?: 0;
 				Cache::set('statistics_hits', $hits, 60);
 			}
@@ -87,7 +87,7 @@ final class GDO_Statistic extends GDO
 			{
 				$day = Time::getDateWithoutTime();
 				$hits = self::table()->select('SUM(ph_hits)')->
-				where("ph_day='{$day}'")->exec()->fetchValue();
+				where("ph_day='{$day}'")->exec()->fetchVar();
 				$hits = $hits ?: 0;
 				Cache::set('statistics_hits_today', $hits);
 			}
